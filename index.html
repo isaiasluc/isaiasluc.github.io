@@ -1032,7 +1032,7 @@ int main(int argvc, char** argv) {
 <div class="sect1">
 <h2 id="_6_filtro_homomórfico">6. Filtro Homomórfico</h2>
 <div class="sectionbody">
-<div class="paragraph">
+<div class="paragraph text-justify">
 <p>O filtro homomórfico é utilizado nos casos em que o ruído é muito grande, para melhorar imagens com iluminação irregular. A tarefa é implementar o filtro homomórfico numa cena mal iluminada, e ajustando os parâmetros do filtro, é possível corrigir a iluminação da melhor forma possível.</p>
 </div>
 <div class="paragraph">
@@ -1343,19 +1343,172 @@ int main(int , char**){
 </div>
 </div>
 <div class="paragraph">
-<p>Imagem Original
-<span class="image"><img src="original_hm.png" alt="original_hm.png"></span></p>
+<div class="title">Imagem Original</div>
+<p><span class="image"><img src="original_hm.png" alt="original_hm.png"></span></p>
 </div>
 <div class="paragraph">
-<p>Imagem Fitlrada
-<span class="image"><img src="filtrada_hm.png" alt="filtrada_hm.png"></span></p>
+<div class="title">Imagem Filtrada</div>
+<p><span class="image"><img src="filtrada_hm.png" alt="filtrada_hm.png"></span></p>
+</div>
+</div>
+</div>
+<div class="sect1">
+<h2 id="_7_cannypoints">7. Cannypoints</h2>
+<div class="sectionbody">
+<div class="paragraph text-justify">
+<p>A partir dos algoritmos de canny e de pontilhismo, a tarefa é implementar um programa chamado cannypoints, onde a idéia é usando as bordas produzidas pelo algoritmo de Canny para melhorar a qualidade da imagem pontilhista gerada.</p>
+</div>
+<div class="paragraph">
+<p>A seguir o resultado do processo e código de execução.</p>
+</div>
+<div class="paragraph">
+<div class="title">Imagem Original</div>
+<p><span class="image"><img src="source2.jpg" alt="source2.jpg"></span></p>
+</div>
+<div class="paragraph">
+<div class="title">Imagem após a técnica de pontilhismo</div>
+<p><span class="image"><img src="Final.jpg" alt="Final.jpg"></span></p>
+</div>
+<div class="listingblock">
+<div class="content">
+<pre class="highlight"><code class="language-cpp" data-lang="cpp">#include &lt;iostream&gt;
+#include &lt;opencv2/opencv.hpp&gt;
+#include &lt;fstream&gt;
+#include &lt;iomanip&gt;
+#include &lt;vector&gt;
+#include &lt;algorithm&gt;
+#include &lt;numeric&gt;
+#include &lt;ctime&gt;
+#include &lt;cstdlib&gt;
+
+using namespace std;
+using namespace cv;
+
+int top_slider = 10;
+int top_slider_max = 200;
+
+int step=5;
+int jitter=3;
+int raio=3;
+int raioM=3;
+
+#define STEP_MAX 20
+#define JITTER_MAX 10
+#define RAIO_MAX 10
+
+Mat image, border, points,pointsCanny;
+
+void on_trackbar_canny(int, void*){
+
+    vector&lt;int&gt; yrange;
+    vector&lt;int&gt; xrange;
+
+    Vec3b cor;
+    int width, height;
+    int x, y;
+
+  width=image.size().width;
+  height=image.size().height;
+  Canny(image, border, top_slider, 3*top_slider);
+  imshow("Canny2", border);
+
+  if(step &lt; 1) step = 1;
+    if(jitter &lt; 1) jitter = 1;
+    if(raio &lt; 1) raio = 1;
+
+  xrange.resize(height/step);
+  yrange.resize(width/step);
+
+  iota(xrange.begin(), xrange.end(), 0);
+  iota(yrange.begin(), yrange.end(), 0);
+
+  for(uint i=0; i&lt;xrange.size(); i++){
+    xrange[i]= xrange[i]*step+step/2;
+  }
+
+  for(uint i=0; i&lt;yrange.size(); i++){
+    yrange[i]= yrange[i]*step+step/2;
+  }
+
+  pointsCanny = Mat(height, width, CV_8UC3, Scalar(255, 255, 255));
+
+  points = Mat(height, width, CV_8UC3, Scalar(255, 255, 255));
+
+  for(int i=0; i&lt;height; i++ ){
+        for(int j=0; j&lt;width; j++){
+           if(border.at&lt;uchar&gt;(i,j)&gt;0){
+              circle(points,
+                     cv::Point(j,i),
+                     raioM,
+                     CV_RGB(cor[0],cor[1],cor[2]),
+                     -1,
+                     CV_AA);
+         }
+      }
+   }
+   random_shuffle(xrange.begin(), xrange.end());
+   for(auto i : xrange){
+     random_shuffle(yrange.begin(), yrange.end());
+     for(auto j : yrange){
+       x = i+rand()%(2*jitter)-jitter+1;
+       y = j+rand()%(2*jitter)-jitter+1;
+
+       cor[0] = (int)(image.at&lt;Vec3b&gt;(i,j)[2]);
+       cor[1] = (int)(image.at&lt;Vec3b&gt;(i,j)[1]);
+       cor[2] = (int)(image.at&lt;Vec3b&gt;(i,j)[0]);
+       raio = rand()%raioM;
+       circle(points,
+              cv::Point(y,x),
+              raio,
+              CV_RGB(cor[0],cor[1],cor[2]),
+              -1,
+              CV_AA);
+     }
+   }
+   imshow("Canny", points);
+  imwrite("Canny.jpg", points);
+}
+
+int main(int argc, char**argv){
+
+image= imread(argv[1],CV_LOAD_IMAGE_COLOR);
+namedWindow("Canny",1);
+namedWindow("Canny2",1);
+ createTrackbar( "Threshold inferior", "Canny",
+               &amp;top_slider,
+               top_slider_max,
+               on_trackbar_canny );
+
+ createTrackbar( "Raio", "Canny",
+                 &amp;raioM,
+                 RAIO_MAX,
+                 on_trackbar_canny );
+
+ createTrackbar( "Jitter", "Canny",
+                 &amp;jitter,
+                 JITTER_MAX,
+                 on_trackbar_canny );
+
+ createTrackbar( "Passo", "Canny",
+                 &amp;step,/home/isaias/Área de Trabalho/tarefas/pontilhismo/Final.jpg
+/home/isaias/Área de Trabalho/tarefas/pontilhismo/source2.jpg
+                 STEP_MAX,
+                 on_trackbar_canny );
+
+  on_trackbar_canny(top_slider, 0 );
+
+  waitKey();
+  imwrite("Final.jpg", points);
+  return 0;
+}</code></pre>
+</div>
 </div>
 </div>
 </div>
 </div>
 <div id="footer">
 <div id="footer-text">
-Last updated 2019-11-04 14:06:38 -03
+Last updated 2019-11-05 00:11:36 -03
 </div>
 </div>
 </body>

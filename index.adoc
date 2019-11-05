@@ -549,6 +549,7 @@ image::tiltshift.jpg[]
 
 == 6. Filtro Homomórfico
 
+[.text-justify]
 O filtro homomórfico é utilizado nos casos em que o ruído é muito grande, para melhorar imagens com iluminação irregular. A tarefa é implementar o filtro homomórfico numa cena mal iluminada, e ajustando os parâmetros do filtro, é possível corrigir a iluminação da melhor forma possível.
 
 Equação do filtro homomórfico:
@@ -856,8 +857,155 @@ int main(int , char**){
 }
 ----
 
-Imagem Original
+.Imagem Original
 image:original_hm.png[original_hm.png]
 
-Imagem Fitlrada
+.Imagem Filtrada
 image:filtrada_hm.png[filtrada_hm.png]
+
+== 7. Cannypoints
+
+[.text-justify]
+A partir dos algoritmos de canny e de pontilhismo, a tarefa é implementar um programa chamado cannypoints, onde a idéia é usando as bordas produzidas pelo algoritmo de Canny para melhorar a qualidade da imagem pontilhista gerada.
+
+A seguir o resultado do processo e código de execução.
+
+.Imagem Original
+image:source2.jpg[source2.jpg]
+
+.Imagem após a técnica de pontilhismo
+image:Final.jpg[Final.jpg]
+
+[source,cpp]
+----
+#include <iostream>
+#include <opencv2/opencv.hpp>
+#include <fstream>
+#include <iomanip>
+#include <vector>
+#include <algorithm>
+#include <numeric>
+#include <ctime>
+#include <cstdlib>
+
+using namespace std;
+using namespace cv;
+
+int top_slider = 10;
+int top_slider_max = 200;
+
+int step=5;
+int jitter=3;
+int raio=3;
+int raioM=3;
+
+#define STEP_MAX 20
+#define JITTER_MAX 10
+#define RAIO_MAX 10
+
+Mat image, border, points,pointsCanny;
+
+void on_trackbar_canny(int, void*){
+
+    vector<int> yrange;
+    vector<int> xrange;
+
+    Vec3b cor;
+    int width, height;
+    int x, y;
+
+  width=image.size().width;
+  height=image.size().height;
+  Canny(image, border, top_slider, 3*top_slider);
+  imshow("Canny2", border);
+
+  if(step < 1) step = 1;
+    if(jitter < 1) jitter = 1;
+    if(raio < 1) raio = 1;
+
+  xrange.resize(height/step);
+  yrange.resize(width/step);
+
+  iota(xrange.begin(), xrange.end(), 0);
+  iota(yrange.begin(), yrange.end(), 0);
+
+  for(uint i=0; i<xrange.size(); i++){
+    xrange[i]= xrange[i]*step+step/2;
+  }
+
+  for(uint i=0; i<yrange.size(); i++){
+    yrange[i]= yrange[i]*step+step/2;
+  }
+
+  pointsCanny = Mat(height, width, CV_8UC3, Scalar(255, 255, 255));
+
+  points = Mat(height, width, CV_8UC3, Scalar(255, 255, 255));
+
+  for(int i=0; i<height; i++ ){
+        for(int j=0; j<width; j++){
+           if(border.at<uchar>(i,j)>0){
+              circle(points,
+                     cv::Point(j,i),
+                     raioM,
+                     CV_RGB(cor[0],cor[1],cor[2]),
+                     -1,
+                     CV_AA);
+         }
+      }
+   }
+   random_shuffle(xrange.begin(), xrange.end());
+   for(auto i : xrange){
+     random_shuffle(yrange.begin(), yrange.end());
+     for(auto j : yrange){
+       x = i+rand()%(2*jitter)-jitter+1;
+       y = j+rand()%(2*jitter)-jitter+1;
+
+       cor[0] = (int)(image.at<Vec3b>(i,j)[2]);
+       cor[1] = (int)(image.at<Vec3b>(i,j)[1]);
+       cor[2] = (int)(image.at<Vec3b>(i,j)[0]);
+       raio = rand()%raioM;
+       circle(points,
+              cv::Point(y,x),
+              raio,
+              CV_RGB(cor[0],cor[1],cor[2]),
+              -1,
+              CV_AA);
+     }
+   }
+   imshow("Canny", points);
+  imwrite("Canny.jpg", points);
+}
+
+int main(int argc, char**argv){
+
+image= imread(argv[1],CV_LOAD_IMAGE_COLOR);
+namedWindow("Canny",1);
+namedWindow("Canny2",1);
+ createTrackbar( "Threshold inferior", "Canny",
+               &top_slider,
+               top_slider_max,
+               on_trackbar_canny );
+
+ createTrackbar( "Raio", "Canny",
+                 &raioM,
+                 RAIO_MAX,
+                 on_trackbar_canny );
+
+ createTrackbar( "Jitter", "Canny",
+                 &jitter,
+                 JITTER_MAX,
+                 on_trackbar_canny );
+
+ createTrackbar( "Passo", "Canny",
+                 &step,/home/isaias/Área de Trabalho/tarefas/pontilhismo/Final.jpg
+/home/isaias/Área de Trabalho/tarefas/pontilhismo/source2.jpg
+                 STEP_MAX,
+                 on_trackbar_canny );
+
+  on_trackbar_canny(top_slider, 0 );
+
+  waitKey();
+  imwrite("Final.jpg", points);
+  return 0;
+}
+----
